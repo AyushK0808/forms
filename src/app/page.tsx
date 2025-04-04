@@ -1,103 +1,262 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from 'react';
+import Head from 'next/head';
+import { Poppins } from 'next/font/google';
+
+// Define font
+const poppins = Poppins({ 
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  variable: '--font-poppins'
+});
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [formData, setFormData] = useState({
+    name: '',
+    phoneNumber: '',
+    email: '',
+    regNo: '',
+    gender: '',
+    birthdate: '',
+    quirkyDetail: '',
+  });
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const handleChange = (e:any) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
+  // Hide toast after 5 seconds
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(() => {
+        setToast({ ...toast, show: false });
+      }, 5000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const handleSubmit = async (e:any) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      const res = await fetch('/api/members', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Something went wrong');
+      }
+      
+      setToast({ 
+        show: true, 
+        message: 'Member details saved successfully!', 
+        type: 'success'
+      });
+      
+      setFormData({
+        name: '',
+        phoneNumber: '',
+        email: '',
+        regNo: '',
+        gender: '',
+        birthdate: '',
+        quirkyDetail: '',
+      });
+    } catch (error:any) {
+      setToast({ 
+        show: true, 
+        message: error.message, 
+        type: 'error'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className={`min-h-screen bg-gradient-to-br from-purple-950 to-black text-white ${poppins.className}`}>
+      <Head>
+        <title>Core Member Registration</title>
+        <meta name="description" content="Register core member details" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div 
+          className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg transform transition-all duration-500 ease-in-out animate-bounce ${
+            toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+          } z-50 max-w-md font-poppins`}
+        >
+          <p className="font-bold">{toast.message}</p>
         </div>
+      )}
+
+      <main className="container mx-auto px-4 py-12 md:max-w-2xl lg:max-w-4xl xl:max-w-5xl">
+        {/* Logo Image */}
+        <div className="flex justify-center mb-8">
+          <img 
+            src="https://raw.githubusercontent.com/vinnovateit/.github/main/assets/whiteLogoViit.png" 
+            alt="VIIT Logo" 
+            className="w-48 h-auto"
+          />
+        </div>
+        
+        <h1 className={`text-5xl font-extrabold mb-8 text-center text-purple-300 font-poppins tracking-wider`}>
+          Core Member Registration
+        </h1>
+        
+        <form 
+          onSubmit={handleSubmit} 
+          className="bg-purple-950 bg-opacity-70 backdrop-filter backdrop-blur-sm shadow-2xl rounded-lg px-8 pt-6 pb-8 mb-4 border-2 border-purple-600 transform transition-all duration-300 hover:scale-102"
+        >
+          <div className="md:grid md:grid-cols-2 md:gap-6">
+            <div className="mb-4 transform transition-all duration-300 hover:translate-x-2">
+              <label className="block text-purple-300 text-sm font-bold mb-2 font-poppins" htmlFor="name">
+                Name
+              </label>
+              <input
+                className="shadow appearance-none border-2 border-purple-500 bg-black bg-opacity-70 rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins"
+                id="name"
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                required
+                placeholder="Your name"
+              />
+            </div>
+            
+            <div className="mb-4 transform transition-all duration-300 hover:translate-x-2">
+              <label className="block text-purple-300 text-sm font-bold mb-2 font-poppins" htmlFor="phoneNumber">
+                Phone Number
+              </label>
+              <input
+                className="shadow appearance-none border-2 border-purple-500 bg-black bg-opacity-70 rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins"
+                id="phoneNumber"
+                type="tel"
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={handleChange}
+                required
+                placeholder="Your phone number"
+              />
+            </div>
+          </div>
+          
+          <div className="md:grid md:grid-cols-2 md:gap-6">
+            <div className="mb-4 transform transition-all duration-300 hover:translate-x-2">
+              <label className="block text-purple-300 text-sm font-bold mb-2 font-poppins" htmlFor="email">
+                Email
+              </label>
+              <input
+                className="shadow appearance-none border-2 border-purple-500 bg-black bg-opacity-70 rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins"
+                id="email"
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                placeholder="Your email"
+              />
+            </div>
+            
+            <div className="mb-4 transform transition-all duration-300 hover:translate-x-2">
+              <label className="block text-purple-300 text-sm font-bold mb-2 font-poppins" htmlFor="regNo">
+                Registration Number
+              </label>
+              <input
+                className="shadow appearance-none border-2 border-purple-500 bg-black bg-opacity-70 rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins"
+                id="regNo"
+                type="text"
+                name="regNo"
+                value={formData.regNo}
+                onChange={handleChange}
+                required
+                placeholder="Your registration number"
+              />
+            </div>
+          </div>
+          
+          <div className="md:grid md:grid-cols-2 md:gap-6">
+            <div className="mb-4 transform transition-all duration-300 hover:translate-x-2">
+              <label className="block text-purple-300 text-sm font-bold mb-2 font-poppins" htmlFor="gender">
+                Gender
+              </label>
+              <select
+                className="shadow appearance-none border-2 border-purple-500 bg-black bg-opacity-70 rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins"
+                id="gender"
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                required
+              >
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            
+            <div className="mb-4 transform transition-all duration-300 hover:translate-x-2">
+              <label className="block text-purple-300 text-sm font-bold mb-2 font-poppins" htmlFor="birthdate">
+                Birth Date
+              </label>
+              <input
+                className="shadow appearance-none border-2 border-purple-500 bg-black bg-opacity-70 rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins"
+                id="birthdate"
+                type="date"
+                name="birthdate"
+                value={formData.birthdate}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
+          
+          <div className="mb-6 transform transition-all duration-300 hover:translate-x-2">
+            <label className="block text-purple-300 text-sm font-bold mb-2 font-poppins" htmlFor="quirkyDetail">
+              One Quirky Detail
+            </label>
+            <textarea
+              className="shadow appearance-none border-2 border-purple-500 bg-black bg-opacity-70 rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 h-24 font-poppins"
+              id="quirkyDetail"
+              name="quirkyDetail"
+              value={formData.quirkyDetail}
+              onChange={handleChange}
+              required
+              placeholder="Share something interesting about yourself!"
+            />
+          </div>
+          
+          <div className="flex items-center justify-center">
+            <button
+              className={`bg-purple-800 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full focus:outline-none focus:shadow-outline transform transition-all duration-300 hover:scale-105 hover:rotate-1 relative overflow-hidden group shadow-lg shadow-purple-900/50 font-poppins tracking-wider`}
+              type="submit"
+              disabled={isSubmitting}
+            >
+              <span className="relative z-10 uppercase">Register</span>
+              <span className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-purple-600 to-purple-800 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+              {isSubmitting && (
+                <span className="absolute right-2 animate-spin">⚡</span>
+              )}
+            </button>
+          </div>
+        </form>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
