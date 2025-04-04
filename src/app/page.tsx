@@ -11,8 +11,26 @@ const poppins = Poppins({
   variable: '--font-poppins'
 });
 
+// Define form data interface
+interface MemberFormData {
+  name: string;
+  phoneNumber: string;
+  email: string;
+  regNo: string;
+  gender: string;
+  birthdate: string;
+  quirkyDetail: string;
+}
+
+// Define toast notification interface
+interface ToastNotification {
+  show: boolean;
+  message: string;
+  type: string;
+}
+
 export default function Home() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<MemberFormData>({
     name: '',
     phoneNumber: '',
     email: '',
@@ -22,10 +40,10 @@ export default function Home() {
     quirkyDetail: '',
   });
   
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: '', type: '' });
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [toast, setToast] = useState<ToastNotification>({ show: false, message: '', type: '' });
 
-  const handleChange = (e:any) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
@@ -41,7 +59,7 @@ export default function Home() {
     }
   }, [toast]);
 
-  const handleSubmit = async (e:any) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     
@@ -75,10 +93,11 @@ export default function Home() {
         birthdate: '',
         quirkyDetail: '',
       });
-    } catch (error:any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
       setToast({ 
         show: true, 
-        message: error.message, 
+        message: errorMessage, 
         type: 'error'
       });
     } finally {
