@@ -10,18 +10,13 @@ if (!uri) {
 }
 
 let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
+const globalForMongo = globalThis as unknown as { _mongoClientPromise?: Promise<MongoClient> };
 
-declare global {
-  var _mongoClientPromise: Promise<MongoClient> | undefined;
-}
-
-// Ensure the client is only created once
-if (!global._mongoClientPromise) {
+if (!globalForMongo._mongoClientPromise) {
   client = new MongoClient(uri, options);
-  global._mongoClientPromise = client.connect();
+  globalForMongo._mongoClientPromise = client.connect();
 }
 
-clientPromise = global._mongoClientPromise;
+const clientPromise = globalForMongo._mongoClientPromise;
 
 export default clientPromise;
