@@ -2,6 +2,17 @@
 
 import { MongoClient } from 'mongodb';
 
+declare global {
+  namespace NodeJS {
+    interface Global {
+      _mongoClientPromise?: Promise<MongoClient>;
+    }
+  }
+}
+
+// Correctly type globalThis
+const globalForMongo = globalThis as unknown as NodeJS.Global;
+
 const uri = process.env.MONGODB_URI;
 
 if (!uri) {
@@ -12,11 +23,11 @@ let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
 
 if (process.env.NODE_ENV === 'development') {
-  if (!(globalThis as any)._mongoClientPromise) {
+  if (!globalForMongo._mongoClientPromise) {
     client = new MongoClient(uri);
-    (globalThis as any)._mongoClientPromise = client.connect();
+    globalForMongo._mongoClientPromise = client.connect();
   }
-  clientPromise = (globalThis as any)._mongoClientPromise;
+  clientPromise = globalForMongo._mongoClientPromise;
 } else {
   client = new MongoClient(uri);
   clientPromise = client.connect();
