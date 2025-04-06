@@ -66,8 +66,6 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [toast, setToast] = useState<ToastNotification>({ show: false, message: '', type: '' });
   const [errors, setErrors] = useState<ValidationErrors>({});
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const [existingMembers, setExistingMembers] = useState<Member[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
 
@@ -226,7 +224,6 @@ export default function Home() {
         birthdate: '',
         quirkyDetail: '',
       });
-      setSelectedDate(undefined);
       
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
