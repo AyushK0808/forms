@@ -30,6 +30,28 @@ interface ToastNotification {
   type: string;
 }
 
+// Define validation errors interface
+interface ValidationErrors {
+  name?: string;
+  phoneNumber?: string;
+  email?: string;
+  regNo?: string;
+}
+
+// Define member interface
+interface Member {
+  _id: string;
+  name: string;
+  phoneNumber: string;
+  email: string;
+  regNo: string;
+  gender: string;
+  birthdate: string;
+  quirkyDetail: string;
+  createdAt: string;
+  __v: number;
+}
+
 export default function Home() {
   const [formData, setFormData] = useState<MemberFormData>({
     name: '',
@@ -43,10 +65,45 @@ export default function Home() {
   
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [toast, setToast] = useState<ToastNotification>({ show: false, message: '', type: '' });
+  const [errors, setErrors] = useState<ValidationErrors>({});
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [existingMembers, setExistingMembers] = useState<Member[]>([]);
+  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
+
+  // Fetch existing members on component mount
+  useEffect(() => {
+    const fetchMembers = async () => {
+      try {
+        const res = await fetch('/api/members', {
+          method: 'GET',
+        });
+        
+        const data = await res.json();
+        
+        if (data.success && Array.isArray(data.data)) {
+          setExistingMembers(data.data);
+        } else {
+          console.error('Failed to fetch members or invalid data format');
+        }
+      } catch (error) {
+        console.error('Error fetching members:', error);
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+    
+    fetchMembers();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+    
+    // Clear error when field is modified
+    if (errors[name as keyof ValidationErrors]) {
+      setErrors({ ...errors, [name]: undefined });
+    }
   };
 
   // Hide toast after 5 seconds
@@ -60,11 +117,80 @@ export default function Home() {
     }
   }, [toast]);
 
+  // Validation function
+  const validateForm = (): boolean => {
+    const newErrors: ValidationErrors = {};
+    let isValid = true;
+    
+    // Regex patterns
+    const nameRegex = /^[a-zA-Z ]{2,50}$/;
+    const phoneRegex = /^[6-9]\d{9}$/; // Indian phone number format
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    const regNoRegex = /^[a-zA-Z0-9-]{3,15}$/;
+    
+    // Name validation
+    if (!nameRegex.test(formData.name)) {
+      newErrors.name = "Please enter a valid name (2-50 alphabetic characters)";
+      isValid = false;
+    }
+    
+    // Phone validation
+    if (!phoneRegex.test(formData.phoneNumber)) {
+      newErrors.phoneNumber = "Please enter a valid 10-digit phone number starting with 6-9";
+      isValid = false;
+    }
+    
+    // Email validation
+    if (!emailRegex.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
+      isValid = false;
+    }
+    
+    // Reg No validation
+    if (!regNoRegex.test(formData.regNo)) {
+      newErrors.regNo = "Please enter a valid registration number (3-15 alphanumeric characters)";
+      isValid = false;
+    }
+    
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  // Check if registration number already exists
+  const checkRegNoExists = (regNo: string): boolean => {
+    return existingMembers.some(member => member.regNo === regNo);
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    // Validate form first
+    if (!validateForm()) {
+      setToast({ 
+        show: true, 
+        message: 'Please fix the errors in the form', 
+        type: 'error'
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
+      // Check if registration number already exists using our local state
+      const regNoExists = checkRegNoExists(formData.regNo);
+      
+      if (regNoExists) {
+        setToast({ 
+          show: true, 
+          message: 'This registration number has already been registered', 
+          type: 'error'
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // If not exists, proceed with submission
       const res = await fetch('/api/members', {
         method: 'POST',
         headers: {
@@ -79,12 +205,18 @@ export default function Home() {
         throw new Error(data.error || 'Something went wrong');
       }
       
+      // Add the new member to our local state
+      if (data.success && data.data) {
+        setExistingMembers([...existingMembers, data.data]);
+      }
+      
       setToast({ 
         show: true, 
         message: 'Member details saved successfully!', 
         type: 'success'
       });
       
+      // Reset form
       setFormData({
         name: '',
         phoneNumber: '',
@@ -94,6 +226,8 @@ export default function Home() {
         birthdate: '',
         quirkyDetail: '',
       });
+      setSelectedDate(undefined);
+      
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
       setToast({ 
@@ -149,6 +283,16 @@ export default function Home() {
         )}
 
         <main className="container mx-auto px-4 py-12 md:max-w-2xl lg:max-w-4xl xl:max-w-5xl relative z-20">
+          {/* Loading overlay while fetching initial data */}
+          {isInitialLoading && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-black bg-opacity-70 p-6 rounded-lg shadow-lg border border-purple-500 flex flex-col items-center">
+                <div className="loader-ring w-12 h-12 border-4"></div>
+                <p className="mt-4 text-purple-300">Loading member data...</p>
+              </div>
+            </div>
+          )}
+          
           {/* Logo Image with purple glow */}
           <div className="flex justify-center mb-8 relative">
             <div className="absolute -inset-2 bg-purple-500 opacity-20 blur-xl rounded-full"></div>
@@ -196,7 +340,7 @@ export default function Home() {
                   </label>
                   <div className="relative">
                     <input
-                      className="shadow appearance-none border border-purple-500/30 bg-black bg-opacity-60 backdrop-blur-sm rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins"
+                      className={`shadow appearance-none border ${errors.name ? 'border-red-500' : 'border-purple-500/30'} bg-black bg-opacity-60 backdrop-blur-sm rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins`}
                       id="name"
                       type="text"
                       name="name"
@@ -206,6 +350,9 @@ export default function Home() {
                       placeholder="Your name"
                     />
                     <div className="absolute inset-0 border border-purple-500/0 rounded-lg group-hover:border-purple-500/30 transition-all duration-300 pointer-events-none"></div>
+                    {errors.name && (
+                      <p className="text-red-400 text-xs mt-1">{errors.name}</p>
+                    )}
                   </div>
                 </div>
                 
@@ -215,7 +362,7 @@ export default function Home() {
                   </label>
                   <div className="relative">
                     <input
-                      className="shadow appearance-none border border-purple-500/30 bg-black bg-opacity-60 backdrop-blur-sm rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins"
+                      className={`shadow appearance-none border ${errors.phoneNumber ? 'border-red-500' : 'border-purple-500/30'} bg-black bg-opacity-60 backdrop-blur-sm rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins`}
                       id="phoneNumber"
                       type="tel"
                       name="phoneNumber"
@@ -225,6 +372,9 @@ export default function Home() {
                       placeholder="Your phone number"
                     />
                     <div className="absolute inset-0 border border-purple-500/0 rounded-lg group-hover:border-purple-500/30 transition-all duration-300 pointer-events-none"></div>
+                    {errors.phoneNumber && (
+                      <p className="text-red-400 text-xs mt-1">{errors.phoneNumber}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -236,7 +386,7 @@ export default function Home() {
                   </label>
                   <div className="relative">
                     <input
-                      className="shadow appearance-none border border-purple-500/30 bg-black bg-opacity-60 backdrop-blur-sm rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins"
+                      className={`shadow appearance-none border ${errors.email ? 'border-red-500' : 'border-purple-500/30'} bg-black bg-opacity-60 backdrop-blur-sm rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins`}
                       id="email"
                       type="email"
                       name="email"
@@ -246,6 +396,9 @@ export default function Home() {
                       placeholder="Your email"
                     />
                     <div className="absolute inset-0 border border-purple-500/0 rounded-lg group-hover:border-purple-500/30 transition-all duration-300 pointer-events-none"></div>
+                    {errors.email && (
+                      <p className="text-red-400 text-xs mt-1">{errors.email}</p>
+                    )}
                   </div>
                 </div>
                 
@@ -255,7 +408,7 @@ export default function Home() {
                   </label>
                   <div className="relative">
                     <input
-                      className="shadow appearance-none border border-purple-500/30 bg-black bg-opacity-60 backdrop-blur-sm rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins"
+                      className={`shadow appearance-none border ${errors.regNo ? 'border-red-500' : 'border-purple-500/30'} bg-black bg-opacity-60 backdrop-blur-sm rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins`}
                       id="regNo"
                       type="text"
                       name="regNo"
@@ -265,6 +418,9 @@ export default function Home() {
                       placeholder="Your registration number"
                     />
                     <div className="absolute inset-0 border border-purple-500/0 rounded-lg group-hover:border-purple-500/30 transition-all duration-300 pointer-events-none"></div>
+                    {errors.regNo && (
+                      <p className="text-red-400 text-xs mt-1">{errors.regNo}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -293,23 +449,26 @@ export default function Home() {
                 </div>
                 
                 <div className="mb-4 transform transition-all duration-300 hover:translate-x-2 group">
-                  <label className="block text-purple-300 text-sm font-bold mb-2 font-poppins" htmlFor="birthdate">
-                    Birth Date
-                  </label>
-                  <div className="relative">
-                    <input
-                      className="shadow appearance-none border border-purple-500/30 bg-black bg-opacity-60 backdrop-blur-sm rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins"
-                      id="birthdate"
-                      type="date"
-                      name="birthdate"
-                      value={formData.birthdate}
-                      onChange={handleChange}
-                      required
-                    />
-                    <div className="absolute inset-0 border border-purple-500/0 rounded-lg group-hover:border-purple-500/30 transition-all duration-300 pointer-events-none"></div>
-                  </div>
-                </div>
-              </div>
+  <label className="block text-purple-300 text-sm font-bold mb-2 font-poppins" htmlFor="birthdate">
+    Birth Date
+  </label>
+  <div className="relative">
+    <input 
+      type="date" 
+      name="birthdate" 
+      id="birthdate"
+      value={formData.birthdate} 
+      onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
+      required
+      className={`shadow appearance-none border border-purple-500/30 bg-black bg-opacity-60 backdrop-blur-sm rounded-lg w-full py-2 px-3 text-white leading-tight focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-300 font-poppins`}
+    />
+    <div className="absolute right-3 top-2.5 pointer-events-none text-purple-300">
+      📅
+    </div>
+  </div>
+</div>
+</div>
+
               
               <div className="mb-6 transform transition-all duration-300 hover:translate-x-2 group">
                 <label className="block text-purple-300 text-sm font-bold mb-2 font-poppins" htmlFor="quirkyDetail">
@@ -463,7 +622,7 @@ export default function Home() {
           
           /* Input focus effect */
           input:focus, select:focus, textarea:focus {
-            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.5);
+            box-shadow: 0 0 0 2px rgba(139, 92,246, 0.5);
           }
         `}</style>
         
